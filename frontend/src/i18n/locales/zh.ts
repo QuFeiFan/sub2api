@@ -1521,7 +1521,16 @@ export default {
         failedToDelete: '删除属性失败',
         failedToReorder: '更新排序失败',
         keyExists: '属性键已存在',
-        dragToReorder: '拖拽排序'
+        dragToReorder: '拖拽排序',
+        lightOpsPresetTitle: '轻运营字段预设',
+        lightOpsPresetHint: '一键补齐常用客户标签和备注字段，适合朋友 / 转发 / 自营这类轻运营管理场景。',
+        lightOpsPresetButton: '补齐运营字段',
+        lightOpsPresetApplying: '正在补齐...',
+        lightOpsPresetCreated: '已补齐 {count} 个运营字段',
+        lightOpsPresetExists: '轻运营字段已经齐了',
+        lightOpsPresetFailed: '补齐运营字段失败',
+        quickFiltersTitle: '运营快捷筛选',
+        quickFiltersHint: '这里会自动读取“客户类型”和“客户状态”字段，点一下就能快速筛人。'
       }
     },
 
@@ -1925,6 +1934,7 @@ export default {
         platform: '平台',
         type: '类型',
         capacity: '容量',
+        quotaSnapshot: '额度快照',
         notes: '备注',
         priority: '优先级',
         billingRateMultiplier: '账号倍率',
@@ -2002,6 +2012,18 @@ export default {
       },
       quotaLimitAmount: '总限额',
       quotaLimitAmountHint: '累计消费上限，不会自动重置。',
+      quotaSnapshot: {
+        today: '今日',
+        window5h: '5h',
+        total: '总额',
+        daily: '日额',
+        weekly: '周额',
+        categories: {
+          thirdPartyKey: '第三方 Key',
+          sharedAccount: '共享号',
+          accountUsage: '账号用量'
+        }
+      },
       testConnection: '测试连接',
       reAuthorize: '重新授权',
       refreshToken: '刷新令牌',
@@ -3053,6 +3075,10 @@ export default {
       subscription: '订阅',
       invitation: '邀请码',
       invitationHint: '邀请码用于限制用户注册，使用后自动标记为已使用。',
+      quickInviteOne: '1 个邀请码',
+      quickInviteFive: '5 个邀请码',
+      quickInviteGenerated: '已生成 {count} 个邀请码',
+      quickInviteFailed: '快速生成邀请码失败',
       allTypes: '全部类型',
       allStatus: '全部状态',
       unused: '未使用',

@@ -29,6 +29,32 @@
           <!-- Right: Action buttons -->
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
             <button
+              @click="handleQuickInvite(1)"
+              :disabled="quickInviteLoadingCount !== null"
+              class="btn btn-secondary"
+            >
+              <Icon
+                :name="quickInviteLoadingCount === 1 ? 'refresh' : 'sparkles'"
+                size="sm"
+                class="mr-1.5"
+                :class="quickInviteLoadingCount === 1 ? 'animate-spin' : ''"
+              />
+              {{ t('admin.redeem.quickInviteOne') }}
+            </button>
+            <button
+              @click="handleQuickInvite(5)"
+              :disabled="quickInviteLoadingCount !== null"
+              class="btn btn-secondary"
+            >
+              <Icon
+                :name="quickInviteLoadingCount === 5 ? 'refresh' : 'sparkles'"
+                size="sm"
+                class="mr-1.5"
+                :class="quickInviteLoadingCount === 5 ? 'animate-spin' : ''"
+              />
+              {{ t('admin.redeem.quickInviteFive') }}
+            </button>
+            <button
               @click="loadCodes"
               :disabled="loading"
               class="btn btn-secondary"
@@ -459,6 +485,7 @@ const textareaHeight = computed(() => {
 })
 
 const copiedAll = ref(false)
+const quickInviteLoadingCount = ref<number | null>(null)
 
 const closeResultDialog = () => {
   showResultDialog.value = false
@@ -615,6 +642,22 @@ const handleSearch = () => {
     pagination.page = 1
     loadCodes()
   }, 300)
+}
+
+const handleQuickInvite = async (count: number) => {
+  quickInviteLoadingCount.value = count
+  try {
+    generatedCodes.value = await adminAPI.redeem.generate(count, 'invitation', 0)
+    showResultDialog.value = true
+    filters.type = 'invitation'
+    pagination.page = 1
+    await loadCodes()
+    appStore.showSuccess(t('admin.redeem.quickInviteGenerated', { count }))
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.redeem.quickInviteFailed'))
+  } finally {
+    quickInviteLoadingCount.value = null
+  }
 }
 
 const handlePageChange = (page: number) => {

@@ -1465,7 +1465,16 @@ export default {
         failedToDelete: 'Failed to delete attribute',
         failedToReorder: 'Failed to update order',
         keyExists: 'Attribute key already exists',
-        dragToReorder: 'Drag to reorder'
+        dragToReorder: 'Drag to reorder',
+        lightOpsPresetTitle: 'Light Ops Preset',
+        lightOpsPresetHint: 'Create the common customer tags and note fields in one click for lean friend / resale / self-operated workflows.',
+        lightOpsPresetButton: 'Apply Ops Preset',
+        lightOpsPresetApplying: 'Applying...',
+        lightOpsPresetCreated: '{count} ops field(s) created',
+        lightOpsPresetExists: 'The light ops fields are already in place',
+        lightOpsPresetFailed: 'Failed to apply ops preset',
+        quickFiltersTitle: 'Quick Ops Filters',
+        quickFiltersHint: 'This area automatically reads the customer type and customer status fields for one-click filtering.'
       }
     },
 
@@ -1876,6 +1885,7 @@ export default {
         platform: 'Platform',
         type: 'Type',
         capacity: 'Capacity',
+        quotaSnapshot: 'Quota Snapshot',
         notes: 'Notes',
         priority: 'Priority',
         billingRateMultiplier: 'Billing Rate',
@@ -1996,6 +2006,18 @@ export default {
       },
       quotaLimitAmount: 'Total Limit',
       quotaLimitAmountHint: 'Cumulative spending limit. Does not auto-reset.',
+      quotaSnapshot: {
+        today: 'Today',
+        window5h: '5h',
+        total: 'Total',
+        daily: 'Daily',
+        weekly: 'Weekly',
+        categories: {
+          thirdPartyKey: 'Third-party Key',
+          sharedAccount: 'Shared Account',
+          accountUsage: 'Account Usage'
+        }
+      },
       testConnection: 'Test Connection',
       reAuthorize: 'Re-Authorize',
       refreshToken: 'Refresh Token',
@@ -2901,6 +2923,10 @@ export default {
       subscription: 'Subscription',
       invitation: 'Invitation',
       invitationHint: 'Invitation codes are used to restrict user registration. They are automatically marked as used after use.',
+      quickInviteOne: '1 Invitation',
+      quickInviteFive: '5 Invitations',
+      quickInviteGenerated: '{count} invitation code(s) created',
+      quickInviteFailed: 'Failed to generate invitation codes quickly',
       unused: 'Unused',
       used: 'Used',
       columns: {

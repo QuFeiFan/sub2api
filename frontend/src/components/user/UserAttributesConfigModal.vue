@@ -2,14 +2,50 @@
   <BaseDialog :show="show" :title="t('admin.users.attributes.title')" width="wide" @close="emit('close')">
     <div class="space-y-4">
       <!-- Header with Add Button -->
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-gray-500 dark:text-dark-400">
           {{ t('admin.users.attributes.description') }}
         </p>
-        <button @click="openCreateModal" class="btn btn-primary btn-sm">
-          <Icon name="plus" size="sm" class="mr-1.5" :stroke-width="2" />
-          {{ t('admin.users.attributes.addAttribute') }}
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            @click="handleApplyLightOpsPresets"
+            :disabled="presetInitializing"
+            class="btn btn-secondary btn-sm"
+          >
+            <Icon
+              name="sparkles"
+              size="sm"
+              class="mr-1.5"
+              :stroke-width="2"
+            />
+            {{ presetInitializing
+              ? t('admin.users.attributes.lightOpsPresetApplying')
+              : t('admin.users.attributes.lightOpsPresetButton') }}
+          </button>
+          <button @click="openCreateModal" class="btn btn-primary btn-sm">
+            <Icon name="plus" size="sm" class="mr-1.5" :stroke-width="2" />
+            {{ t('admin.users.attributes.addAttribute') }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="missingLightOpsPresets.length > 0"
+        class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100"
+      >
+        <p class="font-medium">{{ t('admin.users.attributes.lightOpsPresetTitle') }}</p>
+        <p class="mt-1 text-blue-800/90 dark:text-blue-200/90">
+          {{ t('admin.users.attributes.lightOpsPresetHint') }}
+        </p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <span
+            v-for="preset in missingLightOpsPresets"
+            :key="preset.key"
+            class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-100 dark:ring-blue-800"
+          >
+            {{ preset.name }}
+          </span>
+        </div>
       </div>
 
       <!-- Loading State -->
@@ -32,6 +68,16 @@
         <p class="text-xs text-gray-400 dark:text-dark-500">
           {{ t('admin.users.attributes.noAttributesHint') }}
         </p>
+        <div class="mt-4">
+          <button
+            @click="handleApplyLightOpsPresets"
+            :disabled="presetInitializing"
+            class="btn btn-secondary btn-sm"
+          >
+            <Icon name="sparkles" size="sm" class="mr-1.5" :stroke-width="2" />
+            {{ t('admin.users.attributes.lightOpsPresetButton') }}
+          </button>
+        </div>
       </div>
 
       <!-- Attributes List -->
@@ -237,7 +283,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
@@ -247,6 +293,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
+import { getMissingLightOpsAttributePresets } from '@/utils/lightOpsAttributePresets'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -266,6 +313,7 @@ const attributeTypes: UserAttributeType[] = ['text', 'textarea', 'number', 'emai
 
 const loading = ref(false)
 const saving = ref(false)
+const presetInitializing = ref(false)
 const attributes = ref<UserAttributeDefinition[]>([])
 const showEditModal = ref(false)
 const showDeleteDialog = ref(false)
@@ -283,6 +331,8 @@ const form = reactive({
   enabled: true,
   options: [] as UserAttributeOption[]
 })
+
+const missingLightOpsPresets = computed(() => getMissingLightOpsAttributePresets(attributes.value))
 
 const loadAttributes = async () => {
   loading.value = true
@@ -396,6 +446,34 @@ const handleDelete = async () => {
     loadAttributes()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.users.attributes.failedToDelete'))
+  }
+}
+
+const handleApplyLightOpsPresets = async () => {
+  const missingPresets = missingLightOpsPresets.value
+  if (missingPresets.length === 0) {
+    appStore.showSuccess(t('admin.users.attributes.lightOpsPresetExists'))
+    return
+  }
+
+  presetInitializing.value = true
+  try {
+    for (const [index, preset] of missingPresets.entries()) {
+      await adminAPI.userAttributes.createDefinition({
+        ...preset,
+        display_order: attributes.value.length + index
+      })
+    }
+    await loadAttributes()
+    appStore.showSuccess(
+      t('admin.users.attributes.lightOpsPresetCreated', { count: missingPresets.length })
+    )
+  } catch (error: any) {
+    appStore.showError(
+      error.response?.data?.detail || t('admin.users.attributes.lightOpsPresetFailed')
+    )
+  } finally {
+    presetInitializing.value = false
   }
 }
 

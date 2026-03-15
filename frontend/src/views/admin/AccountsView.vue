@@ -199,6 +199,14 @@
               :error="todayStatsError"
             />
           </template>
+          <template #cell-quota_snapshot="{ row }">
+            <AccountQuotaSnapshotCell
+              :account="row"
+              :stats="todayStatsByAccountId[String(row.id)] ?? null"
+              :loading="todayStatsLoading"
+              :error="todayStatsError"
+            />
+          </template>
           <template #cell-groups="{ row }">
             <AccountGroupsCell :groups="row.groups" :max-display="4" />
           </template>
@@ -316,6 +324,7 @@ import type { SelectOption } from '@/components/common/Select.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
+import AccountQuotaSnapshotCell from '@/components/account/AccountQuotaSnapshotCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
@@ -412,7 +421,7 @@ const buildDefaultTodayStats = (): WindowStats => ({
 })
 
 const refreshTodayStatsBatch = async () => {
-  if (hiddenColumns.has('today_stats')) {
+  if (hiddenColumns.has('today_stats') && hiddenColumns.has('quota_snapshot')) {
     todayStatsLoading.value = false
     todayStatsError.value = null
     return
@@ -544,7 +553,7 @@ const toggleColumn = (key: string) => {
     hiddenColumns.add(key)
   }
   saveColumnsToStorage()
-  if (key === 'today_stats' && wasHidden) {
+  if ((key === 'today_stats' || key === 'quota_snapshot') && wasHidden) {
     refreshTodayStatsBatch().catch((error) => {
       console.error('Failed to load account today stats after showing column:', error)
     })
@@ -684,6 +693,12 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.current_concurrency !== next.current_concurrency ||
     current.current_window_cost !== next.current_window_cost ||
     current.active_sessions !== next.active_sessions ||
+    current.quota_used !== next.quota_used ||
+    current.quota_limit !== next.quota_limit ||
+    current.quota_daily_used !== next.quota_daily_used ||
+    current.quota_daily_limit !== next.quota_daily_limit ||
+    current.quota_weekly_used !== next.quota_weekly_used ||
+    current.quota_weekly_limit !== next.quota_weekly_limit ||
     current.schedulable !== next.schedulable ||
     current.status !== next.status ||
     current.rate_limit_reset_at !== next.rate_limit_reset_at ||
@@ -845,6 +860,7 @@ const allColumns = computed(() => {
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
+    { key: 'quota_snapshot', label: t('admin.accounts.columns.quotaSnapshot'), sortable: false },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
   ]
   if (!authStore.isSimpleMode) {

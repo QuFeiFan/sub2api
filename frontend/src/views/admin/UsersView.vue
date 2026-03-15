@@ -3,219 +3,261 @@
     <TablePageLayout>
       <!-- Single Row: Search, Filters, and Actions -->
       <template #filters>
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- Left: Search + Active Filters -->
-          <div class="flex flex-1 flex-wrap items-center gap-3">
-            <!-- Search Box -->
-            <div class="relative w-full md:w-64">
-              <Icon
-                name="search"
-                size="md"
-                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                v-model="searchQuery"
-                type="text"
-                :placeholder="t('admin.users.searchUsers')"
-                class="input pl-10"
-                @input="handleSearch"
-              />
-            </div>
-
-            <!-- Role Filter (visible when enabled) -->
-            <div v-if="visibleFilters.has('role')" class="w-full sm:w-32">
-              <Select
-                v-model="filters.role"
-                :options="[
-                  { value: '', label: t('admin.users.allRoles') },
-                  { value: 'admin', label: t('admin.users.admin') },
-                  { value: 'user', label: t('admin.users.user') }
-                ]"
-                @change="applyFilter"
-              />
-            </div>
-
-            <!-- Status Filter (visible when enabled) -->
-            <div v-if="visibleFilters.has('status')" class="w-full sm:w-32">
-              <Select
-                v-model="filters.status"
-                :options="[
-                  { value: '', label: t('admin.users.allStatus') },
-                  { value: 'active', label: t('common.active') },
-                  { value: 'disabled', label: t('admin.users.disabled') }
-                ]"
-                @change="applyFilter"
-              />
-            </div>
-
-            <!-- Dynamic Attribute Filters -->
-            <template v-for="(value, attrId) in activeAttributeFilters" :key="attrId">
-              <div
-                v-if="visibleFilters.has(`attr_${attrId}`)"
-                class="relative w-full sm:w-36"
-              >
-                <!-- Text/Email/URL/Textarea/Date type: styled input -->
-                <input
-                  v-if="['text', 'textarea', 'email', 'url', 'date'].includes(getAttributeDefinition(Number(attrId))?.type || 'text')"
-                  :value="value"
-                  @input="(e) => updateAttributeFilter(Number(attrId), (e.target as HTMLInputElement).value)"
-                  @keyup.enter="applyFilter"
-                  :placeholder="getAttributeDefinitionName(Number(attrId))"
-                  class="input w-full"
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Left: Search + Active Filters -->
+            <div class="flex flex-1 flex-wrap items-center gap-3">
+              <!-- Search Box -->
+              <div class="relative w-full md:w-64">
+                <Icon
+                  name="search"
+                  size="md"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 />
-                <!-- Number type: number input -->
                 <input
-                  v-else-if="getAttributeDefinition(Number(attrId))?.type === 'number'"
-                  :value="value"
-                  type="number"
-                  @input="(e) => updateAttributeFilter(Number(attrId), (e.target as HTMLInputElement).value)"
-                  @keyup.enter="applyFilter"
-                  :placeholder="getAttributeDefinitionName(Number(attrId))"
-                  class="input w-full"
-                />
-                <!-- Select/Multi-select type -->
-                <template v-else-if="['select', 'multi_select'].includes(getAttributeDefinition(Number(attrId))?.type || '')">
-                  <div class="w-full">
-                    <Select
-                      :model-value="value"
-                      :options="[
-                        { value: '', label: getAttributeDefinitionName(Number(attrId)) },
-                        ...(getAttributeDefinition(Number(attrId))?.options || [])
-                      ]"
-                      @update:model-value="(val) => { updateAttributeFilter(Number(attrId), String(val ?? '')); applyFilter() }"
-                    />
-                  </div>
-                </template>
-                <!-- Fallback -->
-                <input
-                  v-else
-                  :value="value"
-                  @input="(e) => updateAttributeFilter(Number(attrId), (e.target as HTMLInputElement).value)"
-                  @keyup.enter="applyFilter"
-                  :placeholder="getAttributeDefinitionName(Number(attrId))"
-                  class="input w-full"
+                  v-model="searchQuery"
+                  type="text"
+                  :placeholder="t('admin.users.searchUsers')"
+                  class="input pl-10"
+                  @input="handleSearch"
                 />
               </div>
-            </template>
+
+              <!-- Role Filter (visible when enabled) -->
+              <div v-if="visibleFilters.has('role')" class="w-full sm:w-32">
+                <Select
+                  v-model="filters.role"
+                  :options="[
+                    { value: '', label: t('admin.users.allRoles') },
+                    { value: 'admin', label: t('admin.users.admin') },
+                    { value: 'user', label: t('admin.users.user') }
+                  ]"
+                  @change="applyFilter"
+                />
+              </div>
+
+              <!-- Status Filter (visible when enabled) -->
+              <div v-if="visibleFilters.has('status')" class="w-full sm:w-32">
+                <Select
+                  v-model="filters.status"
+                  :options="[
+                    { value: '', label: t('admin.users.allStatus') },
+                    { value: 'active', label: t('common.active') },
+                    { value: 'disabled', label: t('admin.users.disabled') }
+                  ]"
+                  @change="applyFilter"
+                />
+              </div>
+
+              <!-- Dynamic Attribute Filters -->
+              <template v-for="(value, attrId) in activeAttributeFilters" :key="attrId">
+                <div
+                  v-if="visibleFilters.has(`attr_${attrId}`)"
+                  class="relative w-full sm:w-36"
+                >
+                  <!-- Text/Email/URL/Textarea/Date type: styled input -->
+                  <input
+                    v-if="['text', 'textarea', 'email', 'url', 'date'].includes(getAttributeDefinition(Number(attrId))?.type || 'text')"
+                    :value="value"
+                    @input="(e) => updateAttributeFilter(Number(attrId), (e.target as HTMLInputElement).value)"
+                    @keyup.enter="applyFilter"
+                    :placeholder="getAttributeDefinitionName(Number(attrId))"
+                    class="input w-full"
+                  />
+                  <!-- Number type: number input -->
+                  <input
+                    v-else-if="getAttributeDefinition(Number(attrId))?.type === 'number'"
+                    :value="value"
+                    type="number"
+                    @input="(e) => updateAttributeFilter(Number(attrId), (e.target as HTMLInputElement).value)"
+                    @keyup.enter="applyFilter"
+                    :placeholder="getAttributeDefinitionName(Number(attrId))"
+                    class="input w-full"
+                  />
+                  <!-- Select/Multi-select type -->
+                  <template v-else-if="['select', 'multi_select'].includes(getAttributeDefinition(Number(attrId))?.type || '')">
+                    <div class="w-full">
+                      <Select
+                        :model-value="value"
+                        :options="[
+                          { value: '', label: getAttributeDefinitionName(Number(attrId)) },
+                          ...(getAttributeDefinition(Number(attrId))?.options || [])
+                        ]"
+                        @update:model-value="(val) => { updateAttributeFilter(Number(attrId), String(val ?? '')); applyFilter() }"
+                      />
+                    </div>
+                  </template>
+                  <!-- Fallback -->
+                  <input
+                    v-else
+                    :value="value"
+                    @input="(e) => updateAttributeFilter(Number(attrId), (e.target as HTMLInputElement).value)"
+                    @keyup.enter="applyFilter"
+                    :placeholder="getAttributeDefinitionName(Number(attrId))"
+                    class="input w-full"
+                  />
+                </div>
+              </template>
+            </div>
+
+            <!-- Right: Actions and Settings -->
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <!-- Mobile: Secondary buttons (icon only) -->
+              <div class="flex items-center gap-2 md:contents">
+                <!-- Refresh Button -->
+                <button
+                  @click="loadUsers"
+                  :disabled="loading"
+                  class="btn btn-secondary px-2 md:px-3"
+                  :title="t('common.refresh')"
+                >
+                  <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+                </button>
+                <!-- Filter Settings Dropdown -->
+                <div class="relative" ref="filterDropdownRef">
+                  <button
+                    @click="showFilterDropdown = !showFilterDropdown"
+                    class="btn btn-secondary px-2 md:px-3"
+                    :title="t('admin.users.filterSettings')"
+                  >
+                    <Icon name="filter" size="sm" class="md:mr-1.5" />
+                    <span class="hidden md:inline">{{ t('admin.users.filterSettings') }}</span>
+                  </button>
+                  <!-- Dropdown menu -->
+                  <div
+                    v-if="showFilterDropdown"
+                    class="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                  >
+                    <!-- Built-in filters -->
+                    <button
+                      v-for="filter in builtInFilters"
+                      :key="filter.key"
+                      @click="toggleBuiltInFilter(filter.key)"
+                      class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                    >
+                      <span>{{ filter.name }}</span>
+                      <Icon
+                        v-if="visibleFilters.has(filter.key)"
+                        name="check"
+                        size="sm"
+                        class="text-primary-500"
+                        :stroke-width="2"
+                      />
+                    </button>
+                    <!-- Divider if custom attributes exist -->
+                    <div
+                      v-if="filterableAttributes.length > 0"
+                      class="my-1 border-t border-gray-100 dark:border-dark-700"
+                    ></div>
+                    <!-- Custom attribute filters -->
+                    <button
+                      v-for="attr in filterableAttributes"
+                      :key="attr.id"
+                      @click="toggleAttributeFilter(attr)"
+                      class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                    >
+                      <span>{{ attr.name }}</span>
+                      <Icon
+                        v-if="visibleFilters.has(`attr_${attr.id}`)"
+                        name="check"
+                        size="sm"
+                        class="text-primary-500"
+                        :stroke-width="2"
+                      />
+                    </button>
+                  </div>
+                </div>
+                <!-- Column Settings Dropdown -->
+                <div class="relative" ref="columnDropdownRef">
+                  <button
+                    @click="showColumnDropdown = !showColumnDropdown"
+                    class="btn btn-secondary px-2 md:px-3"
+                    :title="t('admin.users.columnSettings')"
+                  >
+                    <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
+                    </svg>
+                    <span class="hidden md:inline">{{ t('admin.users.columnSettings') }}</span>
+                  </button>
+                  <!-- Dropdown menu -->
+                  <div
+                    v-if="showColumnDropdown"
+                    class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                  >
+                    <button
+                      v-for="col in toggleableColumns"
+                      :key="col.key"
+                      @click="toggleColumn(col.key)"
+                      class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                    >
+                      <span>{{ col.label }}</span>
+                      <Icon
+                        v-if="isColumnVisible(col.key)"
+                        name="check"
+                        size="sm"
+                        class="text-primary-500"
+                        :stroke-width="2"
+                      />
+                    </button>
+                  </div>
+                </div>
+                <!-- Attributes Config Button -->
+                <button
+                  @click="showAttributesModal = true"
+                  class="btn btn-secondary px-2 md:px-3"
+                  :title="t('admin.users.attributes.configButton')"
+                >
+                  <Icon name="cog" size="sm" class="md:mr-1.5" />
+                  <span class="hidden md:inline">{{ t('admin.users.attributes.configButton') }}</span>
+                </button>
+              </div>
+
+              <!-- Create User Button (full width on mobile, auto width on desktop) -->
+              <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
+                <Icon name="plus" size="md" class="mr-2" />
+                {{ t('admin.users.createUser') }}
+              </button>
+            </div>
           </div>
 
-          <!-- Right: Actions and Settings -->
-          <div class="flex flex-wrap items-center justify-end gap-2">
-            <!-- Mobile: Secondary buttons (icon only) -->
-            <div class="flex items-center gap-2 md:contents">
-              <!-- Refresh Button -->
-              <button
-                @click="loadUsers"
-                :disabled="loading"
-                class="btn btn-secondary px-2 md:px-3"
-                :title="t('common.refresh')"
-              >
-                <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-              </button>
-              <!-- Filter Settings Dropdown -->
-              <div class="relative" ref="filterDropdownRef">
-                <button
-                  @click="showFilterDropdown = !showFilterDropdown"
-                  class="btn btn-secondary px-2 md:px-3"
-                  :title="t('admin.users.filterSettings')"
-                >
-                  <Icon name="filter" size="sm" class="md:mr-1.5" />
-                  <span class="hidden md:inline">{{ t('admin.users.filterSettings') }}</span>
-                </button>
-                <!-- Dropdown menu -->
+          <div
+            v-if="quickAttributeFilterGroups.length > 0"
+            class="rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-3 dark:border-dark-600 dark:bg-dark-800/60"
+          >
+            <div class="flex flex-col gap-3">
+              <div>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.users.attributes.quickFiltersTitle') }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-dark-400">
+                  {{ t('admin.users.attributes.quickFiltersHint') }}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-3">
                 <div
-                  v-if="showFilterDropdown"
-                  class="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                  v-for="group in quickAttributeFilterGroups"
+                  :key="group.key"
+                  class="flex flex-wrap items-center gap-2"
                 >
-                  <!-- Built-in filters -->
+                  <span class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-dark-400">
+                    {{ group.label }}
+                  </span>
                   <button
-                    v-for="filter in builtInFilters"
-                    :key="filter.key"
-                    @click="toggleBuiltInFilter(filter.key)"
-                    class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                    v-for="option in group.options"
+                    :key="`${group.key}-${option.value}`"
+                    @click="toggleQuickAttributeFilter(group.attrId, option.value)"
+                    :class="[
+                      'rounded-full px-3 py-1 text-sm transition-colors',
+                      isQuickAttributeFilterActive(group.attrId, option.value)
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-dark-700 dark:text-gray-200 dark:ring-dark-500 dark:hover:bg-dark-600'
+                    ]"
                   >
-                    <span>{{ filter.name }}</span>
-                    <Icon
-                      v-if="visibleFilters.has(filter.key)"
-                      name="check"
-                      size="sm"
-                      class="text-primary-500"
-                      :stroke-width="2"
-                    />
-                  </button>
-                  <!-- Divider if custom attributes exist -->
-                  <div
-                    v-if="filterableAttributes.length > 0"
-                    class="my-1 border-t border-gray-100 dark:border-dark-700"
-                  ></div>
-                  <!-- Custom attribute filters -->
-                  <button
-                    v-for="attr in filterableAttributes"
-                    :key="attr.id"
-                    @click="toggleAttributeFilter(attr)"
-                    class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-                  >
-                    <span>{{ attr.name }}</span>
-                    <Icon
-                      v-if="visibleFilters.has(`attr_${attr.id}`)"
-                      name="check"
-                      size="sm"
-                      class="text-primary-500"
-                      :stroke-width="2"
-                    />
+                    {{ option.label }}
                   </button>
                 </div>
               </div>
-              <!-- Column Settings Dropdown -->
-              <div class="relative" ref="columnDropdownRef">
-                <button
-                  @click="showColumnDropdown = !showColumnDropdown"
-                  class="btn btn-secondary px-2 md:px-3"
-                  :title="t('admin.users.columnSettings')"
-                >
-                  <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
-                  </svg>
-                  <span class="hidden md:inline">{{ t('admin.users.columnSettings') }}</span>
-                </button>
-                <!-- Dropdown menu -->
-                <div
-                  v-if="showColumnDropdown"
-                  class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
-                >
-                  <button
-                    v-for="col in toggleableColumns"
-                    :key="col.key"
-                    @click="toggleColumn(col.key)"
-                    class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-                  >
-                    <span>{{ col.label }}</span>
-                    <Icon
-                      v-if="isColumnVisible(col.key)"
-                      name="check"
-                      size="sm"
-                      class="text-primary-500"
-                      :stroke-width="2"
-                    />
-                  </button>
-                </div>
-              </div>
-              <!-- Attributes Config Button -->
-              <button
-                @click="showAttributesModal = true"
-                class="btn btn-secondary px-2 md:px-3"
-                :title="t('admin.users.attributes.configButton')"
-              >
-                <Icon name="cog" size="sm" class="md:mr-1.5" />
-                <span class="hidden md:inline">{{ t('admin.users.attributes.configButton') }}</span>
-              </button>
             </div>
-
-            <!-- Create User Button (full width on mobile, auto width on desktop) -->
-            <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.users.createUser') }}
-            </button>
           </div>
         </div>
       </template>
@@ -545,6 +587,10 @@ import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
+import {
+  findAttributeDefinitionByKey,
+  LIGHT_OPS_QUICK_FILTER_KEYS
+} from '@/utils/lightOpsAttributePresets'
 
 const appStore = useAppStore()
 
@@ -715,6 +761,31 @@ const VISIBLE_FILTERS_KEY = 'user-visible-filters'
 // All filterable attribute definitions (enabled attributes)
 const filterableAttributes = computed(() =>
   attributeDefinitions.value.filter(def => def.enabled)
+)
+
+interface QuickAttributeFilterGroup {
+  attrId: number
+  key: (typeof LIGHT_OPS_QUICK_FILTER_KEYS)[number]
+  label: string
+  options: UserAttributeDefinition['options']
+}
+
+const quickAttributeFilterGroups = computed<QuickAttributeFilterGroup[]>(() =>
+  LIGHT_OPS_QUICK_FILTER_KEYS.reduce<QuickAttributeFilterGroup[]>((groups, key) => {
+    const definition = findAttributeDefinitionByKey(attributeDefinitions.value, key)
+    if (!definition || !definition.enabled || definition.options.length === 0) {
+      return groups
+    }
+
+    groups.push({
+      attrId: definition.id,
+      key,
+      label: definition.name,
+      options: definition.options
+    })
+
+    return groups
+  }, [])
 )
 
 // Built-in filter definitions
@@ -1076,6 +1147,18 @@ const toggleAttributeFilter = (attr: UserAttributeDefinition) => {
 
 const updateAttributeFilter = (attrId: number, value: string) => {
   activeAttributeFilters[attrId] = value
+}
+
+const isQuickAttributeFilterActive = (attrId: number, value: string) =>
+  activeAttributeFilters[attrId] === value
+
+const toggleQuickAttributeFilter = (attrId: number, value: string) => {
+  const key = `attr_${attrId}`
+  visibleFilters.add(key)
+  activeAttributeFilters[attrId] = activeAttributeFilters[attrId] === value ? '' : value
+  saveFiltersToStorage()
+  pagination.page = 1
+  loadUsers()
 }
 
 // Apply filter and save to localStorage
