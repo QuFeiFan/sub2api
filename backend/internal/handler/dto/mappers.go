@@ -733,4 +733,3 @@ func PromoCodeUsageFromService(u *service.PromoCodeUsage) *PromoCodeUsage {
 		User:        UserFromServiceShallow(u.User),
 	}
 }
-

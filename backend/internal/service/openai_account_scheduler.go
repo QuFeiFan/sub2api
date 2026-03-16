@@ -983,4 +983,3 @@ func calcLoadSkewByMoments(sum float64, sumSquares float64, count int) float64 {
 	}
 	return math.Sqrt(variance)
 }
-
