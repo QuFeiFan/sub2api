@@ -2432,11 +2432,10 @@ func (s *GatewayService) resolvePreferredAccount(ctx context.Context, groupID *i
 		platform = forcePlatform
 		hasForcePlatform = true
 	} else if groupID != nil {
-		group, resolvedGroupID, err := s.resolveGatewayGroup(ctx, groupID)
+		group, _, err := s.resolveGatewayGroup(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
-		groupID = resolvedGroupID
 		ctx = s.withGroupContext(ctx, group)
 		platform = group.Platform
 	} else {

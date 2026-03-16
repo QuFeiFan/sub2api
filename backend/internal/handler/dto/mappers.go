@@ -73,12 +73,12 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		return nil
 	}
 	out := &APIKey{
-		ID:          k.ID,
-		UserID:      k.UserID,
-		Key:         k.Key,
-		Name:        k.Name,
-		GroupID:     k.GroupID,
-		Status:      k.Status,
+		ID:            k.ID,
+		UserID:        k.UserID,
+		Key:           k.Key,
+		Name:          k.Name,
+		GroupID:       k.GroupID,
+		Status:        k.Status,
 		IPWhitelist:   k.IPWhitelist,
 		IPBlacklist:   k.IPBlacklist,
 		LastUsedAt:    k.LastUsedAt,
