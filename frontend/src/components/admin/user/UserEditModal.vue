@@ -38,6 +38,16 @@
         <input v-model.number="form.concurrency" type="number" class="input" />
       </div>
       <div>
+        <label class="input-label">{{ t('admin.users.dedicatedAccount') }}</label>
+        <select v-model.number="form.dedicated_account_id" class="input">
+          <option :value="0">{{ t('admin.users.none') }}</option>
+          <option v-for="account in accountOptions" :key="account.id" :value="account.id">
+            {{ account.name }} (#{{ account.id }}, {{ account.platform }}/{{ account.type }})
+          </option>
+        </select>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.users.dedicatedAccountHint') }}</p>
+      </div>
+      <div>
         <label class="input-label">{{ t('admin.users.soraStorageQuota') }}</label>
         <div class="flex items-center gap-2">
           <input v-model.number="form.sora_storage_quota_gb" type="number" min="0" step="0.1" class="input" placeholder="0" />
@@ -64,7 +74,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, UserAttributeValuesMap } from '@/types'
+import type { Account, AdminUser, UserAttributeValuesMap } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -74,14 +84,25 @@ const emit = defineEmits(['close', 'success'])
 const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-const form = reactive({ email: '', password: '', username: '', notes: '', concurrency: 1, sora_storage_quota_gb: 0, customAttributes: {} as UserAttributeValuesMap })
+const accountOptions = ref<Account[]>([])
+const form = reactive({ email: '', password: '', username: '', notes: '', concurrency: 1, dedicated_account_id: 0, sora_storage_quota_gb: 0, customAttributes: {} as UserAttributeValuesMap })
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', concurrency: u.concurrency, sora_storage_quota_gb: Number(((u.sora_storage_quota_bytes || 0) / (1024 * 1024 * 1024)).toFixed(2)), customAttributes: {} })
+    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', concurrency: u.concurrency, dedicated_account_id: u.dedicated_account_id ?? 0, sora_storage_quota_gb: Number(((u.sora_storage_quota_bytes || 0) / (1024 * 1024 * 1024)).toFixed(2)), customAttributes: {} })
     passwordCopied.value = false
+    void loadAccounts()
   }
 }, { immediate: true })
+
+const loadAccounts = async () => {
+  try {
+    const res = await adminAPI.accounts.list(1, 200, { status: 'active' })
+    accountOptions.value = res.items || []
+  } catch (error) {
+    console.error('Failed to load accounts:', error)
+  }
+}
 
 const generatePassword = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'
@@ -105,7 +126,14 @@ const handleUpdateUser = async () => {
   }
   submitting.value = true
   try {
-    const data: any = { email: form.email, username: form.username, notes: form.notes, concurrency: form.concurrency, sora_storage_quota_bytes: Math.round((form.sora_storage_quota_gb || 0) * 1024 * 1024 * 1024) }
+    const data: any = {
+      email: form.email,
+      username: form.username,
+      notes: form.notes,
+      concurrency: form.concurrency,
+      dedicated_account_id: form.dedicated_account_id,
+      sora_storage_quota_bytes: Math.round((form.sora_storage_quota_gb || 0) * 1024 * 1024 * 1024)
+    }
     if (form.password.trim()) data.password = form.password.trim()
     await adminAPI.users.update(props.user.id, data)
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(props.user.id, form.customAttributes)

@@ -1772,6 +1772,66 @@ func (s *GatewayService) resolveGatewayGroup(ctx context.Context, groupID *int64
 	}
 }
 
+// SelectPreferredAccountWithLoadAwareness tries user-level preferred accounts first and falls
+// back to the normal scheduler when no preferred account is usable.
+func (s *GatewayService) SelectPreferredAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, preferredAccountIDs []int64, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
+	localExcluded := cloneExcludedAccountIDs(excludedIDs)
+	cfg := s.schedulingConfig()
+
+	for _, accountID := range preferredAccountIDs {
+		if accountID <= 0 {
+			continue
+		}
+		if _, excluded := localExcluded[accountID]; excluded {
+			continue
+		}
+
+		account, err := s.resolvePreferredAccount(ctx, groupID, requestedModel, accountID)
+		if err != nil || account == nil {
+			localExcluded[accountID] = struct{}{}
+			continue
+		}
+
+		result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+		if err == nil && result.Acquired {
+			if !s.checkAndRegisterSession(ctx, account, sessionHash) {
+				if result.ReleaseFunc != nil {
+					result.ReleaseFunc()
+				}
+				localExcluded[account.ID] = struct{}{}
+				continue
+			}
+			if sessionHash != "" {
+				_ = s.BindStickySession(ctx, groupID, sessionHash, account.ID)
+			}
+			return &AccountSelectionResult{
+				Account:     account,
+				Acquired:    true,
+				ReleaseFunc: result.ReleaseFunc,
+			}, nil
+		}
+
+		if !s.checkAndRegisterSession(ctx, account, sessionHash) {
+			localExcluded[account.ID] = struct{}{}
+			continue
+		}
+
+		if s.concurrencyService != nil {
+			return &AccountSelectionResult{
+				Account: account,
+				WaitPlan: &AccountWaitPlan{
+					AccountID:      account.ID,
+					MaxConcurrency: account.Concurrency,
+					Timeout:        cfg.FallbackWaitTimeout,
+					MaxWaiting:     cfg.FallbackMaxWaiting,
+				},
+			}, nil
+		}
+	}
+
+	return s.SelectAccountWithLoadAwareness(ctx, groupID, sessionHash, requestedModel, localExcluded, "")
+}
+
 // checkClaudeCodeRestriction 检查分组的 Claude Code 客户端限制
 // 如果分组启用了 claude_code_only 且请求不是来自 Claude Code 客户端：
 //   - 有降级分组：返回降级分组的 ID
@@ -2360,6 +2420,85 @@ func (s *GatewayService) getSchedulableAccount(ctx context.Context, accountID in
 		return s.schedulerSnapshot.GetAccount(ctx, accountID)
 	}
 	return s.accountRepo.GetByID(ctx, accountID)
+}
+
+func (s *GatewayService) resolvePreferredAccount(ctx context.Context, groupID *int64, requestedModel string, accountID int64) (*Account, error) {
+	var (
+		platform         string
+		hasForcePlatform bool
+	)
+
+	if forcePlatform, ok := ctx.Value(ctxkey.ForcePlatform).(string); ok && forcePlatform != "" {
+		platform = forcePlatform
+		hasForcePlatform = true
+	} else if groupID != nil {
+		group, resolvedGroupID, err := s.resolveGatewayGroup(ctx, groupID)
+		if err != nil {
+			return nil, err
+		}
+		groupID = resolvedGroupID
+		ctx = s.withGroupContext(ctx, group)
+		platform = group.Platform
+	} else {
+		platform = PlatformAnthropic
+	}
+
+	account, err := s.getSchedulableAccount(ctx, accountID)
+	if err != nil || account == nil {
+		return nil, err
+	}
+	if !s.isAccountSchedulableForSelection(account) {
+		return nil, errors.New("preferred account is not schedulable")
+	}
+	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
+		return nil, errors.New("preferred account does not support requested model")
+	}
+	if !s.isAccountSchedulableForModelSelection(ctx, account, requestedModel) {
+		return nil, errors.New("preferred account rejected by model constraints")
+	}
+	if !s.isAccountSchedulableForQuota(account) {
+		return nil, errors.New("preferred account quota exhausted")
+	}
+	if !s.isAccountSchedulableForWindowCost(ctx, account, true) {
+		return nil, errors.New("preferred account blocked by window cost")
+	}
+	if !s.isAccountSchedulableForRPM(ctx, account, true) {
+		return nil, errors.New("preferred account blocked by rpm precheck")
+	}
+
+	if hasForcePlatform {
+		if account.Platform != platform {
+			return nil, errors.New("preferred account platform mismatch")
+		}
+		return account, nil
+	}
+
+	switch platform {
+	case PlatformAnthropic, PlatformGemini:
+		if account.Platform == platform {
+			return account, nil
+		}
+		if account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
+			return account, nil
+		}
+		return nil, errors.New("preferred account is not compatible with the current route")
+	default:
+		if account.Platform != platform {
+			return nil, errors.New("preferred account platform mismatch")
+		}
+		return account, nil
+	}
+}
+
+func cloneExcludedAccountIDs(excludedIDs map[int64]struct{}) map[int64]struct{} {
+	if len(excludedIDs) == 0 {
+		return make(map[int64]struct{})
+	}
+	cloned := make(map[int64]struct{}, len(excludedIDs))
+	for id := range excludedIDs {
+		cloned[id] = struct{}{}
+	}
+	return cloned
 }
 
 // filterByMinPriority 过滤出优先级最小的账号集合

@@ -77,7 +77,11 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	if err := r.loadResolvedRouteBindings(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // GetKeyAndOwnerID 根据 API Key ID 获取其 key 与所有者（用户）ID。
@@ -111,7 +115,11 @@ func (r *apiKeyRepository) GetByKey(ctx context.Context, key string) (*service.A
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	if err := r.loadResolvedRouteBindings(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*service.APIKey, error) {
@@ -176,7 +184,11 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	if err := r.loadResolvedRouteBindings(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) error {
@@ -493,6 +505,41 @@ func (r *apiKeyRepository) UpdateLastUsed(ctx context.Context, id int64, usedAt 
 	return nil
 }
 
+func (r *apiKeyRepository) loadResolvedRouteBindings(ctx context.Context, key *service.APIKey) error {
+	if key == nil {
+		return nil
+	}
+	if key.User == nil || key.UserID <= 0 {
+		key.DedicatedAccountID = nil
+		return nil
+	}
+
+	bindings, err := loadUserRouteBindings(ctx, r.sqlForContext(ctx), []int64{key.UserID})
+	if err != nil {
+		return err
+	}
+	key.User.DedicatedAccountID = bindings[key.UserID]
+	key.DedicatedAccountID = bindings[key.UserID]
+	return nil
+}
+
+func (r *apiKeyRepository) sqlForContext(ctx context.Context) sqlExecutor {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		if exec, ok := tx.Client().Driver().(sqlExecutor); ok {
+			return exec
+		}
+	}
+	return r.sql
+}
+
+func nullableInt64Ptr(value sql.NullInt64) *int64 {
+	if !value.Valid {
+		return nil
+	}
+	out := value.Int64
+	return &out
+}
+
 // IncrementRateLimitUsage atomically increments all rate limit usage counters and initializes
 // window start times via COALESCE if not already set.
 func (r *apiKeyRepository) IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error {
@@ -603,6 +650,7 @@ func userEntityToService(u *dbent.User) *service.User {
 		Balance:               u.Balance,
 		Concurrency:           u.Concurrency,
 		Status:                u.Status,
+		DedicatedAccountID:    nil,
 		SoraStorageQuotaBytes: u.SoraStorageQuotaBytes,
 		SoraStorageUsedBytes:  u.SoraStorageUsedBytes,
 		TotpSecretEncrypted:   u.TotpSecretEncrypted,

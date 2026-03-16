@@ -1559,6 +1559,23 @@ func (s *OpenAIGatewayService) getSchedulableAccount(ctx context.Context, accoun
 	return account, nil
 }
 
+func (s *OpenAIGatewayService) resolvePreferredOpenAIAccount(ctx context.Context, requestedModel string, requiredTransport OpenAIUpstreamTransport, accountID int64) (*Account, error) {
+	account, err := s.getSchedulableAccount(ctx, accountID)
+	if err != nil || account == nil {
+		return nil, err
+	}
+	if !account.IsOpenAI() || !account.IsSchedulable() {
+		return nil, errors.New("preferred account is not schedulable for openai routing")
+	}
+	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+		return nil, errors.New("preferred account does not support requested model")
+	}
+	if !s.isAccountTransportCompatible(account, requiredTransport) {
+		return nil, errors.New("preferred account transport mismatch")
+	}
+	return account, nil
+}
+
 func (s *OpenAIGatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 	if s.cfg != nil {
 		return s.cfg.Gateway.Scheduling

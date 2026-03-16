@@ -28,14 +28,15 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Key         string
-	Name        string
-	GroupID     *int64
-	Status      string
-	IPWhitelist []string
-	IPBlacklist []string
+	ID                 int64
+	UserID             int64
+	Key                string
+	Name               string
+	GroupID            *int64
+	Status             string
+	DedicatedAccountID *int64
+	IPWhitelist        []string
+	IPBlacklist        []string
 	// 预编译的 IP 规则，用于认证热路径避免重复 ParseIP/ParseCIDR。
 	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
 	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`
@@ -133,6 +134,19 @@ func (k *APIKey) EffectiveUsage7d() float64 {
 		return 0
 	}
 	return k.Usage7d
+}
+
+// PreferredRouteAccountIDs returns resolved preferred account overrides in priority order.
+func (k *APIKey) PreferredRouteAccountIDs() []int64 {
+	if k == nil {
+		return nil
+	}
+
+	ids := make([]int64, 0, 2)
+	if k.DedicatedAccountID != nil && *k.DedicatedAccountID > 0 {
+		ids = append(ids, *k.DedicatedAccountID)
+	}
+	return ids
 }
 
 // APIKeyListFilters holds optional filtering parameters for listing API keys.

@@ -13,16 +13,16 @@ func UserFromServiceShallow(u *service.User) *User {
 		return nil
 	}
 	return &User{
-		ID:            u.ID,
-		Email:         u.Email,
-		Username:      u.Username,
-		Role:          u.Role,
-		Balance:       u.Balance,
-		Concurrency:   u.Concurrency,
-		Status:        u.Status,
-		AllowedGroups: u.AllowedGroups,
-		CreatedAt:     u.CreatedAt,
-		UpdatedAt:     u.UpdatedAt,
+		ID:                 u.ID,
+		Email:              u.Email,
+		Username:           u.Username,
+		Role:               u.Role,
+		Balance:            u.Balance,
+		Concurrency:        u.Concurrency,
+		Status:             u.Status,
+		AllowedGroups:      u.AllowedGroups,
+		CreatedAt:          u.CreatedAt,
+		UpdatedAt:          u.UpdatedAt,
 	}
 }
 
@@ -61,6 +61,7 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 	return &AdminUser{
 		User:                  *base,
 		Notes:                 u.Notes,
+		DedicatedAccountID:    u.DedicatedAccountID,
 		GroupRates:            u.GroupRates,
 		SoraStorageQuotaBytes: u.SoraStorageQuotaBytes,
 		SoraStorageUsedBytes:  u.SoraStorageUsedBytes,
@@ -72,12 +73,12 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		return nil
 	}
 	out := &APIKey{
-		ID:            k.ID,
-		UserID:        k.UserID,
-		Key:           k.Key,
-		Name:          k.Name,
-		GroupID:       k.GroupID,
-		Status:        k.Status,
+		ID:          k.ID,
+		UserID:      k.UserID,
+		Key:         k.Key,
+		Name:        k.Name,
+		GroupID:     k.GroupID,
+		Status:      k.Status,
 		IPWhitelist:   k.IPWhitelist,
 		IPBlacklist:   k.IPBlacklist,
 		LastUsedAt:    k.LastUsedAt,

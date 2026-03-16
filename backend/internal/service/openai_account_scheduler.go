@@ -833,6 +833,69 @@ func (s *OpenAIGatewayService) SelectAccountWithScheduler(
 	})
 }
 
+func (s *OpenAIGatewayService) SelectAccountWithPreferredRoutes(
+	ctx context.Context,
+	groupID *int64,
+	previousResponseID string,
+	sessionHash string,
+	requestedModel string,
+	preferredAccountIDs []int64,
+	excludedIDs map[int64]struct{},
+	requiredTransport OpenAIUpstreamTransport,
+) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	localExcluded := cloneExcludedAccountIDs(excludedIDs)
+	cfg := s.schedulingConfig()
+
+	for _, accountID := range preferredAccountIDs {
+		if accountID <= 0 {
+			continue
+		}
+		if _, excluded := localExcluded[accountID]; excluded {
+			continue
+		}
+
+		account, err := s.resolvePreferredOpenAIAccount(ctx, requestedModel, requiredTransport, accountID)
+		if err != nil || account == nil {
+			localExcluded[accountID] = struct{}{}
+			continue
+		}
+
+		result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+		if err == nil && result.Acquired {
+			if sessionHash != "" {
+				_ = s.BindStickySession(ctx, groupID, sessionHash, account.ID)
+			}
+			return &AccountSelectionResult{
+				Account:     account,
+				Acquired:    true,
+				ReleaseFunc: result.ReleaseFunc,
+			}, OpenAIAccountScheduleDecision{
+				Layer:               "user_route",
+				SelectedAccountID:   account.ID,
+				SelectedAccountType: account.Type,
+			}, nil
+		}
+
+		if s.concurrencyService != nil {
+			return &AccountSelectionResult{
+				Account: account,
+				WaitPlan: &AccountWaitPlan{
+					AccountID:      account.ID,
+					MaxConcurrency: account.Concurrency,
+					Timeout:        cfg.FallbackWaitTimeout,
+					MaxWaiting:     cfg.FallbackMaxWaiting,
+				},
+			}, OpenAIAccountScheduleDecision{
+				Layer:               "user_route",
+				SelectedAccountID:   account.ID,
+				SelectedAccountType: account.Type,
+			}, nil
+		}
+	}
+
+	return s.SelectAccountWithScheduler(ctx, groupID, previousResponseID, sessionHash, requestedModel, localExcluded, requiredTransport)
+}
+
 func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(accountID int64, success bool, firstTokenMs *int) {
 	scheduler := s.getOpenAIAccountScheduler()
 	if scheduler == nil {

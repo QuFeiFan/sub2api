@@ -140,6 +140,32 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 	return selected, nil
 }
 
+func (s *GeminiMessagesCompatService) SelectPreferredAccountForModel(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, preferredAccountIDs []int64, excludedIDs map[int64]struct{}) (*Account, error) {
+	localExcluded := cloneExcludedAccountIDs(excludedIDs)
+
+	for _, accountID := range preferredAccountIDs {
+		if accountID <= 0 {
+			continue
+		}
+		if _, excluded := localExcluded[accountID]; excluded {
+			continue
+		}
+
+		account, err := s.resolvePreferredGeminiAccount(ctx, groupID, requestedModel, accountID)
+		if err != nil || account == nil {
+			localExcluded[accountID] = struct{}{}
+			continue
+		}
+		if sessionHash != "" {
+			cacheKey := "gemini:" + sessionHash
+			_ = s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, account.ID, geminiStickySessionTTL)
+		}
+		return account, nil
+	}
+
+	return s.SelectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, localExcluded)
+}
+
 // resolvePlatformAndSchedulingMode 解析目标平台和调度模式。
 // 返回：平台名称、是否使用混合调度、是否强制平台、错误。
 //
@@ -416,6 +442,22 @@ func (s *GeminiMessagesCompatService) getSchedulableAccount(ctx context.Context,
 	return s.accountRepo.GetByID(ctx, accountID)
 }
 
+func (s *GeminiMessagesCompatService) resolvePreferredGeminiAccount(ctx context.Context, groupID *int64, requestedModel string, accountID int64) (*Account, error) {
+	platform, useMixedScheduling, _, err := s.resolvePlatformAndSchedulingMode(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := s.getSchedulableAccount(ctx, accountID)
+	if err != nil || account == nil {
+		return nil, err
+	}
+	if !s.isAccountUsableForRequest(ctx, account, requestedModel, platform, useMixedScheduling) {
+		return nil, errors.New("preferred account is not usable for gemini routing")
+	}
+	return account, nil
+}
+
 func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, error) {
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
@@ -547,6 +589,22 @@ func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx cont
 		return nil, errors.New("no available Gemini accounts")
 	}
 	return selected, nil
+}
+
+func (s *GeminiMessagesCompatService) SelectPreferredAccountForAIStudioEndpoints(ctx context.Context, groupID *int64, preferredAccountIDs []int64) (*Account, error) {
+	for _, accountID := range preferredAccountIDs {
+		if accountID <= 0 {
+			continue
+		}
+		account, err := s.resolvePreferredGeminiAccount(ctx, groupID, "", accountID)
+		if err != nil || account == nil {
+			continue
+		}
+		if account.Platform == PlatformGemini {
+			return account, nil
+		}
+	}
+	return s.SelectAccountForAIStudioEndpoints(ctx, groupID)
 }
 
 func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {

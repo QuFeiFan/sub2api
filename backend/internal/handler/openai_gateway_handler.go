@@ -226,12 +226,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	for {
 		// Select account supporting the requested model
 		reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
-		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
+		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithPreferredRoutes(
 			c.Request.Context(),
 			apiKey.GroupID,
 			previousResponseID,
 			sessionHash,
 			reqModel,
+			apiKey.PreferredRouteAccountIDs(),
 			failedAccountIDs,
 			service.OpenAIUpstreamTransportAny,
 		)
@@ -596,12 +597,13 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		// 清除上一次迭代的降级模型标记，避免残留影响本次迭代
 		c.Set("openai_messages_fallback_model", "")
 		reqLog.Debug("openai_messages.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
-		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
+		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithPreferredRoutes(
 			c.Request.Context(),
 			apiKey.GroupID,
 			"", // no previous_response_id
 			sessionHash,
 			reqModel,
+			apiKey.PreferredRouteAccountIDs(),
 			failedAccountIDs,
 			service.OpenAIUpstreamTransportAny,
 		)
@@ -620,12 +622,13 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					reqLog.Info("openai_messages.fallback_to_default_model",
 						zap.String("default_mapped_model", defaultModel),
 					)
-					selection, scheduleDecision, err = h.gatewayService.SelectAccountWithScheduler(
+					selection, scheduleDecision, err = h.gatewayService.SelectAccountWithPreferredRoutes(
 						c.Request.Context(),
 						apiKey.GroupID,
 						"",
 						sessionHash,
 						defaultModel,
+						apiKey.PreferredRouteAccountIDs(),
 						failedAccountIDs,
 						service.OpenAIUpstreamTransportAny,
 					)
@@ -1133,12 +1136,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		firstMessage,
 		openAIWSIngressFallbackSessionSeed(subject.UserID, apiKey.ID, apiKey.GroupID),
 	)
-	selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
+	selection, scheduleDecision, err := h.gatewayService.SelectAccountWithPreferredRoutes(
 		ctx,
 		apiKey.GroupID,
 		previousResponseID,
 		sessionHash,
 		reqModel,
+		apiKey.PreferredRouteAccountIDs(),
 		nil,
 		service.OpenAIUpstreamTransportResponsesWebsocketV2,
 	)

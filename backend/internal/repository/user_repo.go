@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 type userRepository struct {
@@ -70,6 +71,9 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 	if err := r.syncUserAllowedGroupsWithClient(ctx, txClient, created.ID, userIn.AllowedGroups); err != nil {
 		return err
 	}
+	if err := r.syncUserDedicatedAccountBindingWithClient(ctx, txClient, created.ID, userIn.DedicatedAccountID); err != nil {
+		return err
+	}
 
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
@@ -95,6 +99,11 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*service.User, 
 	if v, ok := groups[id]; ok {
 		out.AllowedGroups = v
 	}
+	if bindings, err := r.loadUserDedicatedAccountBindings(ctx, []int64{id}); err != nil {
+		return nil, err
+	} else if v, ok := bindings[id]; ok {
+		out.DedicatedAccountID = v
+	}
 	return out, nil
 }
 
@@ -111,6 +120,11 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*service
 	}
 	if v, ok := groups[m.ID]; ok {
 		out.AllowedGroups = v
+	}
+	if bindings, err := r.loadUserDedicatedAccountBindings(ctx, []int64{m.ID}); err != nil {
+		return nil, err
+	} else if v, ok := bindings[m.ID]; ok {
+		out.DedicatedAccountID = v
 	}
 	return out, nil
 }
@@ -152,6 +166,9 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 	}
 
 	if err := r.syncUserAllowedGroupsWithClient(ctx, txClient, updated.ID, userIn.AllowedGroups); err != nil {
+		return err
+	}
+	if err := r.syncUserDedicatedAccountBindingWithClient(ctx, txClient, updated.ID, userIn.DedicatedAccountID); err != nil {
 		return err
 	}
 
@@ -271,6 +288,15 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 	for id, u := range userMap {
 		if groups, ok := allowedGroupsByUser[id]; ok {
 			u.AllowedGroups = groups
+		}
+	}
+	bindingsByUser, err := r.loadUserDedicatedAccountBindings(ctx, userIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	for id, u := range userMap {
+		if dedicatedID, ok := bindingsByUser[id]; ok {
+			u.DedicatedAccountID = dedicatedID
 		}
 	}
 
@@ -544,6 +570,68 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+}
+
+func (r *userRepository) syncUserDedicatedAccountBindingWithClient(ctx context.Context, client *dbent.Client, userID int64, dedicatedAccountID *int64) error {
+	exec, ok := client.Driver().(sqlExecutor)
+	if !ok {
+		return fmt.Errorf("user route binding sql executor unavailable")
+	}
+	if dedicatedAccountID == nil || *dedicatedAccountID <= 0 {
+		_, err := exec.ExecContext(ctx, `DELETE FROM user_route_bindings WHERE user_id = $1`, userID)
+		return err
+	}
+	_, err := exec.ExecContext(ctx, `
+		INSERT INTO user_route_bindings (user_id, dedicated_account_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE SET
+			dedicated_account_id = EXCLUDED.dedicated_account_id,
+			updated_at = NOW()
+	`, userID, *dedicatedAccountID)
+	return err
+}
+
+func (r *userRepository) loadUserDedicatedAccountBindings(ctx context.Context, userIDs []int64) (map[int64]*int64, error) {
+	return loadUserRouteBindings(ctx, r.sql, userIDs)
+}
+
+func loadUserRouteBindings(ctx context.Context, exec sqlExecutor, userIDs []int64) (map[int64]*int64, error) {
+	result := make(map[int64]*int64, len(userIDs))
+	if len(userIDs) == 0 || exec == nil {
+		return result, nil
+	}
+
+	rows, err := exec.QueryContext(ctx, `
+		SELECT user_id, dedicated_account_id
+		FROM user_route_bindings
+		WHERE user_id = ANY($1)
+	`, pqInt64Array(userIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			userID    int64
+			accountID sql.NullInt64
+		)
+		if err := rows.Scan(&userID, &accountID); err != nil {
+			return nil, err
+		}
+		result[userID] = nullableInt64Ptr(accountID)
+	}
+	return result, rows.Err()
+}
+
+func pqInt64Array(values []int64) any {
+	ints := make([]int64, 0, len(values))
+	for _, value := range values {
+		if value > 0 {
+			ints = append(ints, value)
+		}
+	}
+	return pq.Array(ints)
 }
 
 // UpdateTotpSecret 更新用户的 TOTP 加密密钥

@@ -51,7 +51,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		return
 	}
 
-	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
+	account, err := h.geminiCompatService.SelectPreferredAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID, apiKey.PreferredRouteAccountIDs())
 	if err != nil {
 		// 没有 gemini 账户，检查是否有 antigravity 账户可用
 		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)
@@ -103,7 +103,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 
-	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
+	account, err := h.geminiCompatService.SelectPreferredAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID, apiKey.PreferredRouteAccountIDs())
 	if err != nil {
 		// 没有 gemini 账户，检查是否有 antigravity 账户可用
 		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)

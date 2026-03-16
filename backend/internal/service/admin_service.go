@@ -117,6 +117,7 @@ type UpdateUserInput struct {
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates            map[int64]*float64
 	SoraStorageQuotaBytes *int64
+	DedicatedAccountID    *int64
 }
 
 type CreateGroupInput struct {
@@ -606,6 +607,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldConcurrency := user.Concurrency
 	oldStatus := user.Status
 	oldRole := user.Role
+	oldDedicatedAccountID := derefInt64Ptr(user.DedicatedAccountID)
 
 	if input.Email != "" {
 		user.Email = input.Email
@@ -638,6 +640,13 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.SoraStorageQuotaBytes != nil {
 		user.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes
 	}
+	if input.DedicatedAccountID != nil {
+		accountID, err := s.resolveUserDedicatedAccountID(ctx, input.DedicatedAccountID)
+		if err != nil {
+			return nil, err
+		}
+		user.DedicatedAccountID = accountID
+	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
@@ -651,7 +660,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || derefInt64Ptr(user.DedicatedAccountID) != oldDedicatedAccountID {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -678,6 +687,35 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	return user, nil
+}
+
+func (s *adminServiceImpl) resolveUserDedicatedAccountID(ctx context.Context, rawID *int64) (*int64, error) {
+	if rawID == nil {
+		return nil, nil
+	}
+	if *rawID < 0 {
+		return nil, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "dedicated_account_id must be non-negative")
+	}
+	if *rawID == 0 {
+		return nil, nil
+	}
+
+	account, err := s.accountRepo.GetByID(ctx, *rawID)
+	if err != nil {
+		return nil, err
+	}
+	if account == nil {
+		return nil, ErrAccountNotFound
+	}
+	id := account.ID
+	return &id, nil
+}
+
+func derefInt64Ptr(value *int64) int64 {
+	if value == nil {
+		return 0
+	}
+	return *value
 }
 
 func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
@@ -1292,7 +1330,6 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	result := &AdminUpdateAPIKeyGroupIDResult{}
 
 	if *groupID == 0 {
-		// 0 表示解绑分组（不修改 user_allowed_groups，避免影响用户其他 Key）
 		apiKey.GroupID = nil
 		apiKey.Group = nil
 	} else {

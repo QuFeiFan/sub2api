@@ -59,6 +59,7 @@ type UpdateUserRequest struct {
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates            map[int64]*float64 `json:"group_rates"`
 	SoraStorageQuotaBytes *int64             `json:"sora_storage_quota_bytes"`
+	DedicatedAccountID    *int64             `json:"dedicated_account_id"`
 }
 
 // UpdateBalanceRequest represents balance update request
@@ -224,6 +225,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		AllowedGroups:         req.AllowedGroups,
 		GroupRates:            req.GroupRates,
 		SoraStorageQuotaBytes: req.SoraStorageQuotaBytes,
+		DedicatedAccountID:    req.DedicatedAccountID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
