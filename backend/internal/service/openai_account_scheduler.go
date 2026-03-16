@@ -866,30 +866,30 @@ func (s *OpenAIGatewayService) SelectAccountWithPreferredRoutes(
 				_ = s.BindStickySession(ctx, groupID, sessionHash, account.ID)
 			}
 			return &AccountSelectionResult{
-				Account:     account,
-				Acquired:    true,
-				ReleaseFunc: result.ReleaseFunc,
-			}, OpenAIAccountScheduleDecision{
-				Layer:               "user_route",
-				SelectedAccountID:   account.ID,
-				SelectedAccountType: account.Type,
-			}, nil
+					Account:     account,
+					Acquired:    true,
+					ReleaseFunc: result.ReleaseFunc,
+				}, OpenAIAccountScheduleDecision{
+					Layer:               "user_route",
+					SelectedAccountID:   account.ID,
+					SelectedAccountType: account.Type,
+				}, nil
 		}
 
 		if s.concurrencyService != nil {
 			return &AccountSelectionResult{
-				Account: account,
-				WaitPlan: &AccountWaitPlan{
-					AccountID:      account.ID,
-					MaxConcurrency: account.Concurrency,
-					Timeout:        cfg.FallbackWaitTimeout,
-					MaxWaiting:     cfg.FallbackMaxWaiting,
-				},
-			}, OpenAIAccountScheduleDecision{
-				Layer:               "user_route",
-				SelectedAccountID:   account.ID,
-				SelectedAccountType: account.Type,
-			}, nil
+					Account: account,
+					WaitPlan: &AccountWaitPlan{
+						AccountID:      account.ID,
+						MaxConcurrency: account.Concurrency,
+						Timeout:        cfg.FallbackWaitTimeout,
+						MaxWaiting:     cfg.FallbackMaxWaiting,
+					},
+				}, OpenAIAccountScheduleDecision{
+					Layer:               "user_route",
+					SelectedAccountID:   account.ID,
+					SelectedAccountType: account.Type,
+				}, nil
 		}
 	}
 
@@ -983,3 +983,4 @@ func calcLoadSkewByMoments(sum float64, sumSquares float64, count int) float64 {
 	}
 	return math.Sqrt(variance)
 }
+
