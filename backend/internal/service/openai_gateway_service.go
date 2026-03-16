@@ -1576,6 +1576,16 @@ func (s *OpenAIGatewayService) resolvePreferredOpenAIAccount(ctx context.Context
 	return account, nil
 }
 
+func (s *OpenAIGatewayService) isAccountTransportCompatible(account *Account, requiredTransport OpenAIUpstreamTransport) bool {
+	if requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE {
+		return true
+	}
+	if s == nil || account == nil {
+		return false
+	}
+	return s.getOpenAIWSProtocolResolver().Resolve(account).Transport == requiredTransport
+}
+
 func (s *OpenAIGatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 	if s.cfg != nil {
 		return s.cfg.Gateway.Scheduling
